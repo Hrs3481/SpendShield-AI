@@ -1,0 +1,39 @@
+# This repo pins every dependency to an exact version, which is what makes
+# builds reproducible — but pinned versions go stale, and a stale pin is a
+# security liability. Dependabot resolves that tension: pins stay exact, and
+# updates arrive as PRs that CI has to pass before they can merge.
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /backend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      # One PR for routine bumps instead of a dozen; security fixes still come
+      # through on their own so they aren't buried in a group.
+      backend-minor-and-patch:
+        update-types: ["minor", "patch"]
+    labels: ["dependencies", "backend"]
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      frontend-minor-and-patch:
+        update-types: ["minor", "patch"]
+    labels: ["dependencies", "frontend"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    labels: ["dependencies", "ci"]
+
+  - package-ecosystem: docker
+    directory: /backend
+    schedule:
+      interval: monthly
+    labels: ["dependencies", "docker"]
