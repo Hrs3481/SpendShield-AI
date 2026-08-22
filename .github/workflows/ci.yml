@@ -1,0 +1,116 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  # A new push supersedes an in-flight run on the same ref.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: spendshield
+          POSTGRES_USER: spendshield
+          POSTGRES_PASSWORD: spendshield
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U spendshield"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Tests (SQLite — fast feedback)
+        # pytest collects the unittest-style engine tests too, so this is the
+        # whole suite: pure financial engines plus API integration tests.
+        run: pytest -q
+        env:
+          DATABASE_URL: sqlite://
+          JWT_SECRET: ci-secret-value-long-enough-for-hs256-signing-ok
+
+      - name: Tests (Postgres — the engine we actually deploy on)
+        # SQLite is more permissive than Postgres and silently accepts queries
+        # Postgres rejects, so the suite runs against both. A GROUP BY on a
+        # coalesce() expression passed every SQLite test and 500'd on Postgres.
+        run: pytest -q
+        env:
+          DATABASE_URL: sqlite://
+          TEST_DATABASE_URL: postgresql+psycopg://spendshield:spendshield@localhost:5432/spendshield
+          JWT_SECRET: ci-secret-value-long-enough-for-hs256-signing-ok
+
+      - name: Migrations apply cleanly on Postgres
+        run: alembic upgrade head
+        env:
+          DATABASE_URL: postgresql+psycopg://spendshield:spendshield@localhost:5432/spendshield
+
+      - name: Migrations apply cleanly from scratch
+        # Guards the failure mode where a model changes but no migration is
+        # generated, which only shows up on a real deploy.
+        run: |
+          alembic upgrade head
+          alembic downgrade base
+        env:
+          DATABASE_URL: sqlite:///./ci.sqlite3
+
+      - name: Models and migrations are in sync
+        run: |
+          alembic upgrade head
+          alembic check
+        env:
+          DATABASE_URL: sqlite:///./ci_check.sqlite3
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        # `tsc -b --noEmit` is rejected by TypeScript before 5.6; plain
+        # `tsc --noEmit` type-checks without emitting on every version.
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: [backend]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build backend image
+        run: docker build -t spendshield-backend ./backend
+      - name: Build frontend image
+        run: docker build -t spendshield-frontend ./frontend

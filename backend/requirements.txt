@@ -1,0 +1,19 @@
+# Runtime dependencies only — pinned for reproducible builds.
+#
+# The Phase 2-4 ML stack (pandas, scikit-learn, xgboost, qdrant-client, celery,
+# redis) was previously listed here but is not imported by a single line of code.
+# It added roughly 700MB to the image and broke `pip install` on Python 3.13.
+# It gets added back when the code that needs it lands, not before.
+
+fastapi==0.141.1
+uvicorn[standard]==0.52.4
+sqlalchemy==2.0.52
+psycopg[binary]==3.3.4
+alembic==1.19.1
+pydantic==2.13.4
+pydantic-settings==2.15.0
+email-validator==2.3.0
+pyjwt==2.13.0            # replaces python-jose 3.3.0 (CVE-2024-33663, CVE-2024-33664)
+bcrypt==5.0.0            # used directly; passlib is unmaintained and breaks on bcrypt>=4.1
+python-multipart==0.0.32
+anthropic==1.0.0

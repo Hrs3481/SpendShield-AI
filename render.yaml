@@ -1,0 +1,42 @@
+# Render Blueprint — provisions the backend and its Postgres together.
+# Usage: push this repo to GitHub, then in Render: New -> Blueprint -> pick the repo.
+#
+# Migrations run from the container entrypoint (backend/entrypoint.sh) on every
+# deploy, so there is no manual schema step after the first boot.
+services:
+  - type: web
+    name: spendshield-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: spendshield-db
+          property: connectionString
+      - key: ENV
+        # Turns off /docs and makes the app refuse to boot with a weak
+        # JWT_SECRET or a localhost CORS origin still configured.
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: LLM_PROVIDER
+        value: anthropic
+      - key: LLM_MODEL_NAME
+        value: claude-opus-5
+      - key: LLM_API_KEY
+        sync: false          # set in the Render dashboard — never commit this
+      - key: CORS_ORIGINS
+        # MUST be changed to your real Vercel URL before the first deploy:
+        # ENV=production rejects localhost origins at startup.
+        sync: false
+      - key: DEMO_MODE_ENABLED
+        value: "true"
+
+databases:
+  - name: spendshield-db
+    plan: free
+    databaseName: spendshield
+    user: spendshield

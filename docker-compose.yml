@@ -1,0 +1,57 @@
+# Local full-stack development. `docker compose up --build` is all that's needed —
+# the backend applies its own migrations on start, so there is no manual setup step.
+#
+# Redis and Qdrant are deliberately absent: they were declared here but nothing in
+# the codebase connects to either. They come back when Phase 3/4 code needs them.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: spendshield
+      POSTGRES_USER: spendshield
+      POSTGRES_PASSWORD: spendshield
+    # Overridable because a native Postgres on the host already owns 5432 on many
+    # machines, and it silently wins for localhost connections.
+    #   DB_PORT=55432 docker compose up
+    ports: ["${DB_PORT:-5432}:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U spendshield -d spendshield"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    # Sensible defaults so a fresh clone runs with no .env file. Anything set in
+    # backend/.env still wins; LLM_API_KEY is the only value you must supply, and
+    # only if you want the copilot.
+    environment:
+      DATABASE_URL: postgresql+psycopg://spendshield:spendshield@db:5432/spendshield
+      JWT_SECRET: ${JWT_SECRET:-insecure-development-secret-do-not-use-in-production-0000}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      CORS_ORIGINS: '["http://localhost:5173"]'
+      ENV: development
+    depends_on:
+      db:
+        # Without this the API starts before Postgres accepts connections and
+        # crash-loops on its first query.
+        condition: service_healthy
+    ports: ["8000:8000"]
+    volumes: ["./backend:/app"]
+
+  frontend:
+    build: ./frontend
+    depends_on: [backend]
+    ports: ["5173:5173"]
+    environment:
+      VITE_API_URL: http://localhost:8000
+    volumes:
+      - ./frontend:/app
+      # Anonymous volume keeps the image's node_modules from being shadowed by
+      # the host mount (host modules are built for a different platform).
+      - /app/node_modules
+
+volumes:
+  pgdata:
