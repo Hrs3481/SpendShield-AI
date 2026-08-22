@@ -73,6 +73,7 @@ and everything else works; `/api/v1/copilot/chat` returns a clear 503.
 
 ```bash
 cd backend && pytest -q          # 74 passing
+cd frontend && npm test          # 28 passing
 ```
 
 Three layers:
@@ -92,6 +93,10 @@ Three layers:
   limit, auth error, upstream 500) produces a 500 or leaks a provider message.
   `app/api/copilot.py` and `app/services/financial_context.py` are at 100%
   statement coverage.
+
+The frontend has its own 28 tests (Vitest + Testing Library): the fetch client's
+error and 401 handling, the gauge's mapping from health score to arc, budget
+validation, and the dashboard's no-budget empty state. See `frontend/README.md`.
 
 The suite runs against **both SQLite and Postgres** in CI, because SQLite is the
 more permissive engine and silently accepts queries Postgres rejects.

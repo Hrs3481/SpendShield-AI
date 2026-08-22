@@ -102,6 +102,9 @@ jobs:
         # `tsc --noEmit` type-checks without emitting on every version.
         run: npx tsc --noEmit
 
+      - name: Tests
+        run: npm test
+
       - name: Build
         run: npm run build
 

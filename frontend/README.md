@@ -48,6 +48,30 @@ accent), `tulsi` (positive), `sindoor` (danger), `paper` (off-white text).
 Display type is Space Grotesk, body is Inter, and every rupee amount is IBM Plex
 Mono — deliberately, so money reads like a ledger entry rather than UI copy.
 
+## Tests
+
+```bash
+npm test          # vitest run — 28 passing
+npm run test:watch
+```
+
+Vitest + Testing Library against jsdom. What's covered:
+
+- `src/lib/__tests__/api.test.ts` — Indian digit grouping in `formatINR`, bearer
+  token attachment, the 401 path (clears the token and broadcasts, but only when
+  a token existed), the unreachable-backend message, and a guard that
+  registration credentials never appear in the URL.
+- `SafeToSpendGauge` — the ring is driven by `financial_health_score`, so the
+  same score yields the same arc no matter the rupee amount, plus the aria-label.
+- `BudgetForm` — client-side validation matches the API's, and a rejected save
+  surfaces rather than failing silently.
+- `Dashboard` — with no budget it renders the budget form instead of a zeroed
+  gauge; a 404 from `getCurrentBudget` is an expected state, not a page error;
+  an unreachable API shows an actionable message with a retry.
+
+jsdom implements neither `Element.scrollTo` nor `ResizeObserver`; both are
+stubbed in `src/test/setup.ts` rather than worked around in components.
+
 ## Build
 
 ```bash
