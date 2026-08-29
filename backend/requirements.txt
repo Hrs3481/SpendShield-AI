@@ -16,4 +16,4 @@ email-validator==2.3.0
 pyjwt==2.13.0            # replaces python-jose 3.3.0 (CVE-2024-33663, CVE-2024-33664)
 bcrypt==5.0.0            # used directly; passlib is unmaintained and breaks on bcrypt>=4.1
 python-multipart==0.0.32
-anthropic==1.0.0
+anthropic==1.1.0
