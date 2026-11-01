@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.15-slim
 
 # Fail fast, unbuffered logs so Render/Docker capture them in real time.
 ENV PYTHONUNBUFFERED=1 \
